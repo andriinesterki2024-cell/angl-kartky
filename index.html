@@ -606,7 +606,7 @@ const savePref = () => { try { localStorage.setItem(KEY, JSON.stringify(pref)); 
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const say = t => { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t.replace(/\(.*?\)/g, '')); u.lang = 'en-US'; u.rate = 0.85; speechSynthesis.speak(u); } catch (e) {} };
+const say = () => {}; const sayOld = t => { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t.replace(/\(.*?\)/g, '')); u.lang = 'en-US'; u.rate = 0.85; speechSynthesis.speak(u); } catch (e) {} };
 
 let screen = 'home', deck = [], pos = 0, flipped = false, busy = false;
 
@@ -660,14 +660,12 @@ function cards(enter) {
           <span class="tag">${esc(w.topic)}</span>
           <div class="big-e emo">${w.e}</div>
           <div class="word">${esc(frontWord)}</div>
-          ${w.front === 'en' ? `<button class="say emo" data-say="${esc(w.en)}">🔊</button>` : ''}
           <span class="hint">натисни, щоб перевернути</span>
         </div>
         <div class="face backside">
           <div class="big-e emo" style="font-size:min(70px,16vw)">${w.e}</div>
           <div class="word">${esc(w.en)}</div>
-          <button class="say emo" data-say="${esc(w.en)}">🔊</button>
-          <div class="tr">${esc(w.ua)}</div>
+                    <div class="tr">${esc(w.ua)}</div>
         </div>
       </div>
     </div>
