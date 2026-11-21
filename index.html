@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Англійські картки</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2c3240; --text:#eef0f3; --muted:#9aa3ae; --acc:#4f8cff; --acc2:#7c5cff; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui, "Segoe UI", Roboto, Arial, sans-serif; }
+  .emo { font-family:"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:calc(18px + var(--tg-content-safe-area-inset-top, 0px)) 16px calc(40px + var(--tg-safe-area-inset-bottom, 0px)); }
+  body { user-select:none; -webkit-user-select:none; overscroll-behavior:none; }
+  h1 { font-size:26px; margin:6px 0 4px; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  h2 { font-size:16px; color:var(--muted); font-weight:600; margin:22px 0 10px; text-transform:uppercase; letter-spacing:.04em; }
+  .topics { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .topic { background:var(--card); border:2px solid var(--line); border-radius:14px; padding:14px 10px; cursor:pointer; text-align:center; user-select:none; transition:border-color .15s, transform .1s, background .15s; }
+  .topic:active { transform:scale(.97); }
+  .topic .e { font-size:36px; display:block; margin-bottom:6px; }
+  .topic .n { font-size:15px; font-weight:600; }
+  .topic .c { font-size:12px; color:var(--muted); margin-top:3px; }
+  .topic.on { border-color:var(--acc); background:#1b2740; }
+  .links { margin-top:10px; display:flex; gap:16px; }
+  .link { color:var(--acc); cursor:pointer; font-size:14px; background:none; border:0; padding:0; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { background:var(--card); border:2px solid var(--line); color:var(--text); border-radius:999px; padding:9px 18px; font-size:15px; cursor:pointer; }
+  .chip.on { border-color:var(--acc); background:#1b2740; }
+  .start { margin-top:26px; width:100%; padding:16px; font-size:18px; font-weight:700; color:#fff; border:0; border-radius:14px; cursor:pointer; background:linear-gradient(90deg, var(--acc), var(--acc2)); }
+  .start:disabled { opacity:.4; cursor:default; }
+
+  /* екран карток */
+  .bar { display:flex; align-items:center; gap:12px; }
+  .back { background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:8px 14px; cursor:pointer; font-size:15px; }
+  .count { margin-left:auto; color:var(--muted); font-size:15px; }
+  .prog { height:6px; background:var(--line); border-radius:3px; margin:12px 0 0; overflow:hidden; }
+  .prog > div { height:100%; background:linear-gradient(90deg, var(--acc), var(--acc2)); transition:width .25s; }
+  .deck { position:relative; width:min(440px, 100%); height:min(440px, 62vh); margin:26px auto 0; perspective:1400px; touch-action:pan-y; }
+  .pile { position:absolute; inset:0; border-radius:22px; background:#232835; border:1px solid var(--line); }
+  .pile.p1 { transform:translate(8px, 10px) rotate(2.5deg); }
+  .pile.p2 { transform:translate(-8px, 18px) rotate(-3deg); background:#1d212b; }
+  .flip { position:absolute; inset:0; cursor:pointer; transform-style:preserve-3d; transition:transform .45s cubic-bezier(.3,.7,.3,1), opacity .3s; }
+  .flip.flipped { transform:rotateY(180deg); }
+  .flip.go-left { transform:translateX(-130%) rotate(-18deg); opacity:0; }
+  .flip.go-right { transform:translateX(130%) rotate(18deg); opacity:0; }
+  .flip.flipped.go-left { transform:translateX(-130%) rotate(-18deg) rotateY(180deg); }
+  .flip.flipped.go-right { transform:translateX(130%) rotate(18deg) rotateY(180deg); }
+  .flip.enter { animation:enter .28s ease-out; }
+  @keyframes enter { from { transform:translateY(14px) scale(.96); opacity:.4; } to { transform:none; opacity:1; } }
+  .face { position:absolute; inset:0; border-radius:22px; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+          display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px; text-align:center;
+          background:linear-gradient(160deg, #272d3b, #1a1d24); border:1px solid #363d4d; box-shadow:0 14px 34px rgba(0,0,0,.5); }
+  .face.backside { transform:rotateY(180deg); background:linear-gradient(160deg, #1f3150, #1a1d24); }
+  .big-e { font-size:min(110px, 22vw); line-height:1.1; margin-bottom:12px; }
+  .word { font-size:clamp(28px, 7vw, 40px); font-weight:800; }
+  .tr { font-size:clamp(22px, 5.5vw, 30px); color:#cfe0ff; margin-top:10px; font-weight:600; }
+  .tag { position:absolute; top:14px; left:16px; font-size:12px; color:var(--muted); }
+  .hint { position:absolute; bottom:14px; font-size:12px; color:var(--muted); }
+  .say { background:none; border:0; font-size:26px; cursor:pointer; margin-top:6px; }
+  .ctrl { display:flex; justify-content:center; gap:10px; margin-top:30px; }
+  .ctrl button { background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:13px 20px; font-size:16px; cursor:pointer; }
+  .ctrl button.main { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .ctrl button:disabled { opacity:.35; cursor:default; }
+  .keys { text-align:center; color:var(--muted); font-size:13px; margin-top:14px; }
+  .done { text-align:center; margin-top:60px; }
+  .done .big-e { font-size:90px; }
+  @media (max-width:560px) { .keys { display:none; } .ctrl button { padding:13px 14px; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+// ===== СЛОВА: емодзі | англійською | українською =====
+const TOPICS = [
+{ e:"🍎", name:"Їжа і напої", w:`🍎|apple|яблуко
+🍌|banana|банан
+🍊|orange|апельсин
+🍇|grapes|виноград
+🍓|strawberry|полуниця
+🍋|lemon|лимон
+🍉|watermelon|кавун
+🥔|potato|картопля
+🥕|carrot|морква
+🍅|tomato|помідор
+🥒|cucumber|огірок
+🧅|onion|цибуля
+🍞|bread|хліб
+🧀|cheese|сир
+🧈|butter|вершкове масло
+🥚|egg|яйце
+🥛|milk|молоко
+🍗|chicken|курятина
+🥩|meat|м'ясо
+🐟|fish|риба
+🍚|rice|рис
+🍝|pasta|макарони
+🥣|soup|суп
+🧂|salt|сіль
+🍯|honey|мед
+🍰|cake|торт
+☕|coffee|кава
+🍵|tea|чай
+💧|water|вода
+🧃|juice|сік` },
+{ e:"🏠", name:"Дім і речі", w:`🏠|house|будинок
+🏢|flat|квартира
+🚪|door|двері
+🛏️|bed|ліжко
+🛋️|sofa|диван
+🪑|chair|стілець
+🍽️|plate|тарілка
+🥄|spoon|ложка
+🍴|fork|виделка
+🔪|knife|ніж
+🧊|fridge|холодильник
+🚿|shower|душ
+🛁|bath|ванна
+🚽|toilet|туалет
+💡|lamp|лампа
+🔑|key|ключ
+🧺|basket|кошик
+🧹|broom|віник
+🧼|soap|мило
+🧽|sponge|губка
+🗑️|bin|смітник
+📺|TV|телевізор
+⏰|alarm clock|будильник
+📦|box|коробка
+🧸|toy|іграшка
+🕯️|candle|свічка
+🖼️|picture|картина
+🧻|toilet paper|туалетний папір
+🔌|socket|розетка
+🏡|garden|сад, город` },
+{ e:"👨‍👩‍👧", name:"Сім'я і люди", w:`👨|man|чоловік
+👩|woman|жінка
+👦|boy|хлопчик
+👧|girl|дівчинка
+👶|baby|немовля
+👴|grandfather|дідусь
+👵|grandmother|бабуся
+👨‍👩‍👧|family|сім'я
+🧔|father|тато
+🤱|mother|мама
+👬|brother|брат
+👭|sister|сестра
+🤵|husband|чоловік (у шлюбі)
+👰|wife|дружина
+🧒|child|дитина
+👫|friend|друг, подруга
+🏘️|neighbour|сусід
+👨‍🏫|teacher|вчитель
+👨‍⚕️|doctor|лікар
+👮|police officer|поліцейський
+👨‍🍳|chef|кухар
+👨‍🔧|mechanic|механік
+👨‍💻|programmer|програміст
+👷|builder|будівельник
+👨‍🌾|farmer|фермер
+👨‍🚒|firefighter|пожежник
+👥|people|люди
+🎂|birthday|день народження
+💒|wedding|весілля
+🙋|guest|гість` },
+{ e:"❤️", name:"Тіло і здоров'я", w:`👀|eyes|очі
+👂|ear|вухо
+👃|nose|ніс
+👄|mouth|рот
+🦷|tooth|зуб
+👅|tongue|язик
+💇|hair|волосся
+🙂|face|обличчя
+✋|hand|кисть руки
+💪|arm|рука
+🦵|leg|нога
+🦶|foot|стопа
+👆|finger|палець
+❤️|heart|серце
+🧠|brain|мозок
+🦴|bone|кістка
+🩸|blood|кров
+🤒|ill|хворий
+🤧|a cold|застуда
+🤕|headache|головний біль
+😷|mask|маска
+💊|pill|таблетка
+💉|injection|укол
+🏥|hospital|лікарня
+🩹|plaster|пластир
+🌡️|temperature|температура
+🤢|sick|нудить
+😴|sleep|спати
+🥗|healthy|здоровий
+🚑|ambulance|швидка допомога` },
+{ e:"👕", name:"Одяг", w:`👕|T-shirt|футболка
+👔|shirt|сорочка
+👖|jeans|джинси
+🩳|shorts|шорти
+👗|dress|сукня
+🧥|jacket|куртка
+🧶|sweater|светр
+🧣|scarf|шарф
+🧤|gloves|рукавички
+🧢|cap|кепка
+🎩|hat|капелюх
+👟|trainers|кросівки
+👞|shoes|туфлі
+👢|boots|чоботи
+🥾|hiking boots|черевики
+👠|high heels|туфлі на підборах
+🧦|socks|шкарпетки
+👙|swimsuit|купальник
+🩲|underwear|білизна, труси
+👓|glasses|окуляри
+🕶️|sunglasses|сонцезахисні окуляри
+⌚|watch|годинник (на руці)
+💍|ring|каблучка
+👜|bag|сумка
+🎒|backpack|рюкзак
+👛|wallet|гаманець
+👚|blouse|блузка
+🌂|umbrella|парасолька
+💄|lipstick|помада
+🔘|button|ґудзик` },
+{ e:"🐶", name:"Тварини", w:`🐶|dog|собака
+🐱|cat|кіт
+🐭|mouse|миша
+🐰|rabbit|кролик
+🐻|bear|ведмідь
+🦊|fox|лисиця
+🐺|wolf|вовк
+🐴|horse|кінь
+🐮|cow|корова
+🐷|pig|свиня
+🐑|sheep|вівця
+🐐|goat|коза
+🐔|hen|курка
+🦆|duck|качка
+🐦|bird|птах
+🦉|owl|сова
+🐸|frog|жаба
+🐍|snake|змія
+🐢|turtle|черепаха
+🐝|bee|бджола
+🦋|butterfly|метелик
+🕷️|spider|павук
+🐜|ant|мурашка
+🦁|lion|лев
+🐯|tiger|тигр
+🐘|elephant|слон
+🐒|monkey|мавпа
+🦒|giraffe|жирафа
+🐬|dolphin|дельфін
+🦈|shark|акула` },
+{ e:"🌦️", name:"Природа і погода", w:`☀️|sun|сонце
+🌙|moon|місяць
+⭐|star|зірка
+☁️|cloud|хмара
+🌧️|rain|дощ
+❄️|snow|сніг
+🌬️|wind|вітер
+⛈️|storm|гроза
+🌈|rainbow|веселка
+🌫️|fog|туман
+🔥|fire|вогонь
+🌳|tree|дерево
+🌸|flower|квітка
+🌱|plant|рослина
+🍃|leaf|листок
+🌲|forest|ліс
+⛰️|mountain|гора
+🌊|sea|море
+🏞️|river|річка
+🏝️|island|острів
+🏖️|beach|пляж
+🏜️|desert|пустеля
+🌍|Earth|Земля
+🥵|heat|спека
+🥶|freezing|морозно
+🌤️|sunny|сонячно
+🍂|autumn|осінь
+⛄|winter|зима
+🌷|spring|весна
+🌻|summer|літо` },
+{ e:"🚗", name:"Місто і транспорт", w:`🚗|car|машина
+🚌|bus|автобус
+🚕|taxi|таксі
+🚆|train|потяг
+🚇|metro|метро
+🚲|bicycle|велосипед
+🛴|scooter|самокат
+🏍️|motorbike|мотоцикл
+🚚|truck|вантажівка
+🚦|traffic light|світлофор
+🛣️|road|дорога
+🌉|bridge|міст
+🏙️|city|місто
+🌾|village|село
+🅿️|parking|парковка
+⛽|petrol station|заправка
+🏪|shop|магазин
+🏦|bank|банк
+🏫|school|школа
+🏛️|museum|музей
+⛪|church|церква
+🏟️|stadium|стадіон
+🏬|shopping centre|торговий центр
+📮|post office|пошта
+🚏|bus stop|зупинка
+🚶|pedestrian|пішохід
+⬅️|left|ліворуч
+➡️|right|праворуч
+⬆️|straight ahead|прямо
+🚧|road works|ремонт дороги` },
+{ e:"💰", name:"Робота і гроші", w:`💼|job|робота
+🗄️|office|офіс
+💰|money|гроші
+💵|cash|готівка
+💳|card|картка
+🏷️|price|ціна
+🧾|bill|рахунок
+💸|spend|витрачати
+🐖|save money|відкладати гроші
+📈|income|дохід
+💶|salary|зарплата
+🤝|deal|угода
+👨‍💼|boss|начальник
+👩‍💼|colleague|колега
+📅|meeting|зустріч
+📞|call|дзвонити
+📧|email|електронний лист
+📝|contract|договір
+⏳|deadline|дедлайн
+🛍️|buy|купувати
+🏪|sell|продавати
+💱|exchange|обмін валют
+🧮|count|рахувати
+💹|profit|прибуток
+📉|loss|збиток
+🏧|ATM|банкомат
+🤑|rich|багатий
+🥺|poor|бідний
+🔻|cheap|дешевий
+💎|expensive|дорогий` },
+{ e:"💻", name:"Навчання і техніка", w:`💻|laptop|ноутбук
+📱|phone|телефон
+🖥️|computer|комп'ютер
+⌨️|keyboard|клавіатура
+🖱️|computer mouse|комп'ютерна мишка
+🖨️|printer|принтер
+🎧|headphones|навушники
+📷|camera|камера
+🔋|battery|батарея
+🔌|charger|зарядка
+📶|internet|інтернет
+🔐|password|пароль
+📖|book|книжка
+📓|notebook|зошит
+✏️|pencil|олівець
+🖊️|pen|ручка
+📏|ruler|лінійка
+✂️|scissors|ножиці
+🎓|university|університет
+🧪|lab|лабораторна
+📄|report|звіт
+👨‍🎓|student|студент
+❓|question|питання
+💬|answer|відповідь
+📋|test|тест
+📨|message|повідомлення
+🔍|search|шукати
+💾|save (a file)|зберегти (файл)
+🐛|bug|помилка в програмі
+🗓️|timetable|розклад` },
+{ e:"⚽", name:"Спорт і хобі", w:`⚽|football|футбол
+🏀|basketball|баскетбол
+🎾|tennis|теніс
+🏐|volleyball|волейбол
+🥊|boxing|бокс
+🏊|swimming|плавання
+🏃|running|біг
+🚴|cycling|їзда на велосипеді
+⛷️|skiing|лижі
+🏋️|gym|спортзал
+🧘|yoga|йога
+♟️|chess|шахи
+🎮|video games|відеоігри
+🎸|guitar|гітара
+🎹|piano|піаніно
+🥁|drums|барабани
+🎤|sing|співати
+🎵|music|музика
+💃|dance|танцювати
+🎨|draw|малювати
+📸|photo|фото
+🎬|film|фільм
+📚|read|читати
+🎣|fishing|риболовля
+⛺|camping|кемпінг
+🏆|win|вигравати
+🥇|first place|перше місце
+🏅|medal|медаль
+⏱️|training|тренування
+🤼|team|команда` },
+{ e:"✈️", name:"Подорожі", w:`✈️|plane|літак
+🛫|flight|рейс
+🛂|passport|паспорт
+🎫|ticket|квиток
+🧳|suitcase|валіза
+🏨|hotel|готель
+🗺️|map|карта
+🌐|abroad|за кордоном
+🏖️|holiday|відпочинок, відпустка
+🚢|ship|корабель
+🚉|station|вокзал
+🛬|arrival|прибуття
+⌛|delay|затримка
+💺|seat|місце (сидіння)
+🛃|customs|митниця
+📃|visa|віза
+📲|booking|бронювання
+🛌|room|номер (у готелі)
+🧍|tourist|турист
+🗽|sights|пам'ятки
+🌅|view|краєвид
+🏰|castle|замок
+🗣️|language|мова
+🔤|translate|перекладати
+💌|postcard|листівка
+📍|place|місце
+🧭|direction|напрямок
+🏃‍♂️|hurry|поспішати
+🎟️|tour|екскурсія
+😎|sunbathe|засмагати` },
+{ e:"😊", name:"Почуття і характер", w:`😊|happy|щасливий
+😢|sad|сумний
+😠|angry|злий, сердитий
+😨|scared|наляканий
+😲|surprised|здивований
+😩|tired|втомлений
+🥱|bored|той, кому нудно
+🤩|excited|у захваті
+😌|calm|спокійний
+😟|worried|стурбований
+🆒|cool|крутий
+🥰|love|кохати, любити
+👍|like|подобатися
+😒|jealous|ревнивий
+😔|lonely|самотній
+😳|shy|сором'язливий
+🤓|smart|розумний
+🤪|crazy|божевільний
+😇|kind|добрий
+😈|naughty|неслухняний
+😂|funny|смішний
+🤥|lie|брехати
+🤗|hug|обіймати
+😘|kiss|цілувати
+💭|miss|сумувати (за кимось)
+😤|stubborn|впертий
+🤔|think|думати
+🙏|thank|дякувати
+😬|nervous|нервовий
+😏|confident|впевнений` },
+{ e:"⏰", name:"Час і числа", w:`🕐|hour|година
+⏲️|minute|хвилина
+⚡|second|секунда
+📆|day|день
+🗓️|week|тиждень
+🌓|month|місяць (час)
+🎆|year|рік
+🌄|morning|ранок
+🌇|evening|вечір
+🌃|night|ніч
+🌞|afternoon|день (після обіду)
+⏪|yesterday|вчора
+▶️|today|сьогодні
+⏩|tomorrow|завтра
+🔜|soon|скоро
+👉|now|зараз
+🔁|always|завжди
+🎲|sometimes|іноді
+🚫|never|ніколи
+🐌|late|пізно
+🐓|early|рано
+1️⃣|one|один
+2️⃣|two|два
+3️⃣|three|три
+🔟|ten|десять
+💯|hundred|сто
+🔢|thousand|тисяча
+🏁|first|перший
+🔚|last|останній
+🌗|half|половина` },
+{ e:"🎨", name:"Описи: які бувають речі", w:`🐘|big|великий
+🐜|small|маленький
+📏|long|довгий
+🍄|short|короткий, низький
+🦒|tall|високий
+🆕|new|новий
+🏚️|old|старий
+♨️|hot|гарячий
+🧊|cold|холодний
+🚀|fast|швидкий
+🐢|slow|повільний
+🎈|light|легкий (за вагою)
+🏋️|heavy|важкий
+✨|clean|чистий
+💩|dirty|брудний
+😍|beautiful|гарний
+👹|ugly|потворний
+🔊|loud|гучний
+🤫|quiet|тихий
+🍬|sweet|солодкий
+🍋|sour|кислий
+🌶️|spicy|гострий
+✅|easy|простий
+🧩|difficult|складний
+🌕|full|повний
+🕳️|empty|порожній
+🌑|dark|темний
+🔴|red|червоний
+🔵|blue|синій
+🟢|green|зелений` },
+{ e:"🏃", name:"Часті дієслова 1", w:`🏃|run|бігти
+🚶|walk|ходити пішки
+🧍|stand|стояти
+🪑|sit|сидіти
+🛌|lie down|лягти
+🍽️|eat|їсти
+🥤|drink|пити
+👀|see|бачити
+👂|hear|чути
+🗣️|speak|говорити
+✍️|write|писати
+🎧|listen|слухати
+👁️|look|дивитися
+🎁|give|давати
+🤲|take|брати
+➡️|go|йти, їхати
+⬅️|come|приходити
+🚪|open|відчиняти
+🔒|close|зачиняти
+🛠️|make|робити, створювати
+✔️|do|робити
+🔎|find|знаходити
+⏳|wait|чекати
+🙋|ask|питати
+🧠|remember|пам'ятати
+🤦|forget|забувати
+📚|learn|вчити
+💡|understand|розуміти
+🛑|stop|зупинятися
+🏁|start|починати` },
+{ e:"💬", name:"Часті дієслова 2", w:`💪|can|могти, вміти
+😋|want|хотіти
+❗|need|потребувати
+🤝|help|допомагати
+🎯|try|намагатися
+🔄|change|змінювати
+🧹|tidy up|прибирати
+🍳|cook|готувати їжу
+🧺|wash|прати, мити
+🚿|have a shower|приймати душ
+🦷|brush teeth|чистити зуби
+⏰|wake up|прокидатися
+🛏️|go to bed|лягати спати
+🚗|drive|керувати авто
+🅿️|park|паркуватися
+✈️|fly|літати
+🏊|swim|плавати
+😂|laugh|сміятися
+😭|cry|плакати
+💭|dream|мріяти
+🗳️|choose|обирати
+👌|agree|погоджуватися
+💸|pay|платити
+📦|send|надсилати
+📬|receive|отримувати
+🏠|live|жити
+💼|work|працювати
+🎉|celebrate|святкувати
+🤞|hope|сподіватися
+🧐|know|знати` }
+].map((t, i) => ({ ...t, id: i, words: t.w.trim().split('\n').map(l => { const [e, en, ua] = l.split('|'); return { e: e.trim(), en: en.trim(), ua: ua.trim(), topic: t.name }; }) }));
+
+// ===== Telegram =====
+const tg = (window.Telegram && Telegram.WebApp && Telegram.WebApp.platform && Telegram.WebApp.platform !== 'unknown') ? Telegram.WebApp : null;
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.disableVerticalSwipes(); } catch (e) {}
+  try { tg.setHeaderColor('#0f1115'); tg.setBackgroundColor('#0f1115'); tg.setBottomBarColor && tg.setBottomBarColor('#0f1115'); } catch (e) {}
+  try { tg.BackButton.onClick(() => { if (screen !== 'home') home(); }); } catch (e) {}
+}
+const haptic = kind => { try { if (!tg) return; kind === 'tick' ? tg.HapticFeedback.selectionChanged() : kind === 'done' ? tg.HapticFeedback.notificationOccurred('success') : tg.HapticFeedback.impactOccurred('light'); } catch (e) {} };
+const backBtn = show => { try { if (tg) show ? tg.BackButton.show() : tg.BackButton.hide(); } catch (e) {} };
+
+// ===== стан =====
+const KEY = 'eng-cards-v1';
+let pref = { topics: [0], count: 20, dir: 'en' };
+try { Object.assign(pref, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+const savePref = () => { try { localStorage.setItem(KEY, JSON.stringify(pref)); } catch (e) {} };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const say = t => { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t.replace(/\(.*?\)/g, '')); u.lang = 'en-US'; u.rate = 0.85; speechSynthesis.speak(u); } catch (e) {} };
+
+let screen = 'home', deck = [], pos = 0, flipped = false, busy = false;
+
+// ===== головний екран =====
+function home() {
+  screen = 'home'; backBtn(false);
+  const sel = new Set(pref.topics);
+  const total = TOPICS.filter(t => sel.has(t.id)).reduce((s, t) => s + t.words.length, 0);
+  const n = pref.count === 'all' ? total : Math.min(pref.count, total);
+  $('#app').innerHTML = `
+    <h1><span class="emo">🃏</span> Англійські картки</h1>
+    <p class="sub">${TOPICS.reduce((s, t) => s + t.words.length, 0)} слів у ${TOPICS.length} темах. Обери теми, скільки карток, і погнали.</p>
+    <h2>1. Теми</h2>
+    <div class="topics">${TOPICS.map(t => `<div class="topic ${sel.has(t.id) ? 'on' : ''}" data-id="${t.id}"><span class="e emo">${t.e}</span><div class="n">${esc(t.name)}</div><div class="c">${t.words.length} слів</div></div>`).join('')}</div>
+    <div class="links"><button class="link" id="all">Обрати всі</button><button class="link" id="none">Зняти всі</button></div>
+    <h2>2. Скільки карток</h2>
+    <div class="chips" id="cnt">${[10, 20, 30, 50, 'all'].map(c => `<button class="chip ${pref.count === c ? 'on' : ''}" data-c="${c}">${c === 'all' ? 'Усі' : c}</button>`).join('')}</div>
+    <h2>3. Що показувати спершу</h2>
+    <div class="chips" id="dir">${[['en', 'Англійське слово'], ['ua', 'Українське слово'], ['mix', 'Впереміш']].map(([k, v]) => `<button class="chip ${pref.dir === k ? 'on' : ''}" data-d="${k}">${v}</button>`).join('')}</div>
+    <button class="start" id="go" ${n ? '' : 'disabled'}>${n ? `Почати — ${n} карток` : 'Обери хоча б одну тему'}</button>`;
+  document.querySelectorAll('.topic').forEach(el => el.onclick = () => {
+    const id = +el.dataset.id; sel.has(id) ? sel.delete(id) : sel.add(id); pref.topics = [...sel]; savePref(); home();
+  });
+  $('#all').onclick = () => { pref.topics = TOPICS.map(t => t.id); savePref(); home(); };
+  $('#none').onclick = () => { pref.topics = []; savePref(); home(); };
+  document.querySelectorAll('#cnt .chip').forEach(el => el.onclick = () => { pref.count = el.dataset.c === 'all' ? 'all' : +el.dataset.c; savePref(); home(); });
+  document.querySelectorAll('#dir .chip').forEach(el => el.onclick = () => { pref.dir = el.dataset.d; savePref(); home(); });
+  $('#go').onclick = start;
+}
+
+function start() {
+  const pool = TOPICS.filter(t => pref.topics.includes(t.id)).flatMap(t => t.words);
+  const picked = shuffle(pool).slice(0, pref.count === 'all' ? pool.length : pref.count);
+  deck = picked.map(w => ({ ...w, front: pref.dir === 'mix' ? (Math.random() < 0.5 ? 'en' : 'ua') : pref.dir }));
+  pos = 0; flipped = false; cards(true);
+}
+
+// ===== картки =====
+function cards(enter) {
+  screen = 'cards'; backBtn(true);
+  if (pos >= deck.length) return finish();
+  const w = deck[pos], left = deck.length - pos;
+  const frontWord = w.front === 'en' ? w.en : w.ua;
+  $('#app').innerHTML = `
+    <div class="bar"><button class="back" id="home">← Теми</button><div class="count">${pos + 1} / ${deck.length}</div></div>
+    <div class="prog"><div style="width:${pos / deck.length * 100}%"></div></div>
+    <div class="deck" id="deck">
+      ${left > 2 ? '<div class="pile p2"></div>' : ''}${left > 1 ? '<div class="pile p1"></div>' : ''}
+      <div class="flip ${flipped ? 'flipped' : ''} ${enter ? 'enter' : ''}" id="fc">
+        <div class="face">
+          <span class="tag">${esc(w.topic)}</span>
+          <div class="big-e emo">${w.e}</div>
+          <div class="word">${esc(frontWord)}</div>
+          ${w.front === 'en' ? `<button class="say emo" data-say="${esc(w.en)}">🔊</button>` : ''}
+          <span class="hint">натисни, щоб перевернути</span>
+        </div>
+        <div class="face backside">
+          <div class="big-e emo" style="font-size:min(70px,16vw)">${w.e}</div>
+          <div class="word">${esc(w.en)}</div>
+          <button class="say emo" data-say="${esc(w.en)}">🔊</button>
+          <div class="tr">${esc(w.ua)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="ctrl">
+      <button id="prev" ${pos ? '' : 'disabled'}>← Назад</button>
+      <button id="turn">Перевернути</button>
+      <button class="main" id="next">Далі →</button>
+    </div>
+    <div class="keys" ${tg ? 'hidden' : ''}>Пробіл — перевернути · ← → — гортати · на телефоні можна свайпати</div>`;
+  $('#home').onclick = home;
+  $('#fc').onclick = flip;
+  $('#turn').onclick = flip;
+  $('#next').onclick = () => go(1);
+  $('#prev').onclick = () => go(-1);
+  document.querySelectorAll('[data-say]').forEach(b => b.onclick = e => { e.stopPropagation(); say(b.dataset.say); });
+  // свайпи
+  let sx = null, sy = null;
+  const d = $('#deck');
+  d.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  d.addEventListener('touchend', e => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) { e.preventDefault(); go(dx < 0 ? 1 : -1); }
+  });
+}
+function flip() {
+  if (busy) return;
+  flipped = !flipped; haptic('flip');
+  $('#fc').classList.remove('enter');
+  $('#fc').classList.toggle('flipped', flipped);
+  if (flipped && deck[pos].front === 'ua') say(deck[pos].en);
+}
+function go(step) {
+  if (busy) return;
+  if (step < 0 && pos === 0) return;
+  busy = true; haptic('tick');
+  $('#fc').classList.remove('enter');
+  $('#fc').classList.add(step > 0 ? 'go-left' : 'go-right');
+  setTimeout(() => { pos += step; flipped = false; busy = false; cards(true); }, 260);
+}
+function finish() {
+  screen = 'done'; backBtn(true); haptic('done');
+  $('#app').innerHTML = `<div class="done">
+    <div class="big-e emo">🎉</div>
+    <h1>Готово! ${deck.length} карток</h1>
+    <p class="sub">Пройди ще раз: картки щоразу перемішуються.</p>
+    <div class="ctrl"><button class="main" id="again">Ще раз</button><button id="topics">Інші теми</button></div></div>`;
+  $('#again').onclick = start;
+  $('#topics').onclick = home;
+}
+
+document.addEventListener('keydown', e => {
+  if (screen === 'cards') {
+    if (e.code === 'Space' || e.key === 'Enter' || e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); flip(); }
+    if (e.key === 'ArrowRight') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+    if (e.key === 'Escape') home();
+  } else if (screen === 'done' && (e.code === 'Space' || e.key === 'Enter')) { e.preventDefault(); start(); }
+});
+
+home();
+</script>
+</body>
+</html>
